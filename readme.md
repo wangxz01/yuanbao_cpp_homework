@@ -21,7 +21,7 @@
 SDL2版本
 
 ## the way to use sdl:
-很重要的范例 使用sdl库时的编译
+很重要的范例(自认为) 使用sdl库时的编译
 
 #  lifegame.cpp
 控制台
