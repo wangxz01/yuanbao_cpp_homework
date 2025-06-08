@@ -1,0 +1,538 @@
+% !Mode:: "TeX:UTF-8"
+%% 请使用 XeLaTeX 编译本文.
+%\documentclass{WHUBachelor}% 选项 forprint: 交付打印时添加, 避免彩色链接字迹打印偏淡. 即使用下一行:
+\documentclass[forprint]{WHUBachelor}
+%---------------------这里添加所需的package--------------------------------
+\usepackage{url}
+\usepackage{listings}
+
+%--------------------------------------------------------------------------
+\makeatletter
+\def\BState{\State\hskip-\ALG@thistlm}
+\makeatother
+\begin{document}
+%-----------------------------------------------------------------------------
+
+%%%%%%% 下面的内容, 据实填空.
+
+\Ccoursename{程序设计A} %课程名称
+\title{元胞自动机的C++代码实现与分析} %实验名称 换行请使用\\
+\author{王晓智} % 学生姓名
+\Csupervisor{胡文斌} %指导教师一姓名、职称
+\CstudentNum{2023300002015} %学号
+\Cmajor{数学与应用数学} % 专业名称
+%\Cschoolname{计算机学院} % 学院名
+\date{二〇二五年六月} % 日期
+
+%-----------------------------------------------------------------------------
+
+\pdfbookmark[0]{封面}{title}         % 封面页加到 pdf 书签
+\maketitle
+\frontmatter
+\pagenumbering{Roman}              % 正文之前的页码用大写罗马字母编号.2019.6.16:更新 正文之前的页码隐藏，无需显示
+%-----------------------------------------------------------------------------
+\include{includefile/frontmatter}    % 加入摘要, 申明.
+%==========================把目录加入到书签==============================%%%%%%
+
+
+\tableofcontents
+\thispagestyle{empty}				%不显示罗马数字 ——zmx更新于2019.06.18
+\addtocontents{toc}{\protect\thispagestyle{empty}}
+
+
+
+
+\mainmatter %% 以下是正文
+%%%%%%%%%%%%%%%%%%%%%%%%%%%--------main matter-------%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\pagestyle{plain}%plain
+%\cfoot{\thepage{\zihao{5}\bf\usefonttimes}}
+%\renewcommand{\baselinestretch}{1.6}
+%\setlength{\baselineskip}{23pt}
+\baselineskip=23pt  % 正文行距为 23 磅
+
+%此处书写正文-------------------------------------------------------------------------------------
+
+
+\chapter{引言}
+ 
+ \section{研究背景}
+
+元胞自动机（Cellular Automata, CA）是一种时间、空间和状态均离散的动力学模型，最早由冯·诺依曼在20世纪40年代提出，用于研究自我复制机器的可能性。其核心思想是通过简单的局部规则驱动大量元胞的同步更新，从而模拟复杂系统的时空演化行为。这种“简单规则产生复杂行为”的特性，使得元胞自动机成为研究自组织、混沌、分形等非线性现象的重要工具。
+
+\subsection{理论发展}
+奠基阶段：冯·诺依曼与乌拉姆构建了首个元胞自动机模型，探索机器自我复制的理论可能性。  
+
+经典突破：1970年康威设计的“生命游戏”（Game of Life）通过简单的生死规则（如“3个存活邻居则生，2或3个存活邻居则保持”），展现了元胞自动机在模拟生命现象中的潜力。  
+
+分类体系：沃尔夫勒姆（Stephen Wolfram）在20世纪80年代提出四类动力学行为分类（平稳型、周期型、混沌型、复杂型），为元胞自动机的理论研究提供了系统框架。
+
+\subsection{应用领域}
+
+元胞自动机的应用已渗透至多学科领域：  
+生物学：模拟肿瘤生长、HIV感染过程及群体行为（如鱼群洄游）；  
+
+物理学：用于流体力学（格子气自动机）、枝晶形成（如雪花模拟）；  
+
+计算机科学：作为并行计算模型，应用于图像处理和模式识别；  
+
+社会科学：研究经济危机传播、城市扩展等宏观现象。
+
+\subsection{研究意义}
+
+当前，元胞自动机在人工生命和复杂系统研究中展现出独特优势：  
+方法论价值：通过局部规则涌现全局复杂性，为理解智能起源（如蚁群算法）提供新视角；  
+
+技术潜力：在自适应系统设计、环境模拟（如油污扩散）等领域具有广泛应用前景。  
+
+
+\section{主要成果}
+
+\subsection{规则定义与建模}
+元胞自动机的行为由局部规则驱动，本实验针对二维网格模型（Moore邻域）实现以下规则体系：
+\begin{itemize}
+    \item \textbf{状态集合}：S = \{0,1\}（0表示死亡/空闲，1表示存活/占据）
+    \item \textbf{转换函数}：
+    \[
+    s_i(t+1) = 
+    \begin{cases}
+& \text{若} \sum_{j \in N_i} s_j(t) = 3 \\
+
+& \text{若} s_i(t)=1 \land \sum_{j \in N_i} s_j(t) = 2 \\
+
+& \text{其他情况}
+
+    \end{cases}
+    \]
+    \item \textbf{边界处理}：采用周期性边界条件（环形空间）
+\end{itemize}
+
+\subsection{可视化实现方案}
+为直观展示元胞演化过程，设计双重可视化方案：
+\begin{itemize}
+    \item \textbf{控制台输出}：通过ASCII字符（如"□"表示死细胞，"■"表示活细胞）实现快速原型验证
+    \item \textbf{SDL2图形界面}：基于像素矩阵渲染，支持实时交互与动态调参（如图\ref{fig:gui}所示）
+    \begin{figure}[h]
+        \centering
+        \includegraphics[width=0.8\textwidth]{image-10.png}
+        \caption{基于SDL2的可视化界面}
+        \label{fig:gui}
+    \end{figure}
+\end{itemize}
+
+\subsection{工程化实践}
+通过以下方法提升代码可维护性：
+\begin{itemize}
+    \item \textbf{Makefile自动化}：定义编译目标（debug/release），集成静态代码检查（如cppcheck）
+    \item \textbf{模块化设计}：分离核心逻辑（CA规则引擎）与可视化组件，遵循SOLID原则
+\end{itemize}
+
+
+
+
+
+
+% \section{文档类型选择}
+
+% {\textbf{\zihao{-2}{本小节是毕业论文打印介绍，实验报告可以略过}}}
+
+% 文档类型有 2 种情形:
+
+% \begin{table}[ht]\centering
+% \begin{tabular}{ll}
+% \hline
+%    \verb|\documentclass{WHUBachelor}|                     &  毕业论文 \\
+%    \verb|\documentclass[forprint]{WHUBachelor}|        &  毕业论文打印版 \\
+% \hline
+% \end{tabular}
+% \end{table}
+% 相关解释见下节.
+
+
+% \section{打印的问题}
+
+% {\textbf{\zihao{-2}{本小节是毕业论文打印介绍，实验报告可以略过}}}
+
+% \begin{enumerate}[i)] 
+% %  \item  论文要求\colorbox{yellow}{单面打印}.
+%   \item  关于文档选项 forprint: 交付打印时, 建议加上选项 forprint, 以消除链接文字之彩色, 避免打印字迹偏淡.
+%   \item  打印时留意不要缩小页面或居中. 即页面放缩方式应该是``无''(Adobe Reader XI 是选择``实际大小'').
+%            有可能页面放缩方式默认为``适合可打印区域'', 会导致打印为原页面大小的 $97\%$.
+%            文字不要居中打印, 是因为考虑到装订, 左侧的空白留得稍多一点(模板已作预留).
+%   \item  遗留问题: 封面需要打印部重新制作.  校内打印部通常有现成的模板.
+%            我们自己做的封面, 打印部不一定好用.
+% \end{enumerate}
+% %如果不是彩色打印机, 请在打印时, 选择将彩色打印为黑白, 否则彩色文字打出的墨迹会偏淡.
+
+% \textbf{问}: {\kaishu 生成 PDF 文件时，不能去掉目录和文章的引用彩色方框，请问怎么解决？}
+
+% \textbf{答}: {\kaishu 方框表示超级链接, 只在电脑上看得见. 实际打印时, 是没有的. 另外, 文档类型加选项 forprint 之后, 这些框框会隐掉的. }
+
+%  \vfill
+
+% 本文档下载更新地址: \url{https://github.com/xiaoxinganling/WHUExperiment}. 使用之前, 请移步查看是否有更新.
+
+% 问题反馈及建议, 请联系: mxzhou1998@gmail.com.
+
+
+
+\chapter{理论基础}
+
+\section{元胞自动机的原理}
+元胞自动机（Cellular Automata, CA）是一种时空离散的动力学系统模型，其核心原理可概括为以下5个要素:
+
+\subsection{基本组成}
+\begin{itemize}
+    \item \textbf{元胞（Cell）}：系统的基本单元，分布在规则网格（一维/二维/多维）上，每个元胞具有有限离散状态（如$\{0,1\}$）。
+    \item \textbf{状态集（Set）}：可以是两种状态，用“生”、“死”，“0”、“1”，“黑”、“白”来表示；也可以是多种状态，如不同的颜色。
+    \item \textbf{空间/元胞空间（Lattice）}：元胞在空间中分布的空间格点，可以是一维、二维或多维,常见网格类型包括四方格（二维）、六边形格或立体网格（三维）。
+    \item \textbf{邻居（Neighbor）}：存在于某一元胞周围，能影响该元胞在下一时刻的状态;或者说决定元胞状态更新的局部范围，典型结构包括：
+    \begin{itemize}
+        \item \textbf{Moore邻居}（二维，8邻域）
+        \item \textbf{Von Neumann邻居}（二维，4邻域）。
+    \end{itemize}
+    \item \textbf{演化规则（Rule）}：根据元胞及其邻居元胞的状态，决定下一时刻该元胞状态的动力学函数，也可以是状态转移方程。  
+    状态转移函数$\delta: S^k \to S$，基于当前元胞及其邻居状态计算下一时刻状态。数学表示为：
+    $$
+    s_i(t+1) = \delta\left(s_{i-r}(t), \ldots, s_i(t), \ldots, s_{i+r}(t)\right)
+    $$
+    其中$r$为邻居半径。
+\end{itemize}
+
+
+\subsection{演化机制}
+\begin{itemize}
+    \item \textbf{同步更新}：所有元胞按离散时间步并行更新状态。
+    \item \textbf{局部性}：元胞状态仅依赖自身及邻居的当前状态，无全局信息参与。
+    \item \textbf{边界条件}：常用周期型（环形连接）、反射型或固定值型处理有限空间的边界效应。
+\end{itemize}
+
+\subsection{行为分类（Wolfram分类）}
+\begin{enumerate}
+    \item \textbf{平稳型}：演化至均匀静止状态（不动点）。
+    \item \textbf{周期型}：形成稳定振荡结构（如生命游戏中的"眨眼器"）。
+    \item \textbf{混沌型}：产生无序、分形等不可预测模式。
+    \item \textbf{复杂型}：涌现局部有序与全局混沌的混合行为（如生命游戏的"滑翔机"）。
+\end{enumerate}
+
+\section{一维元胞自动机}
+一维元胞自动机（1D Cellular Automata）是最简单的元胞自动机形式.
+
+\subsection{基本结构}
+\begin{itemize}
+    \item \textbf{元胞空间}：由直线上的离散格点构成，每个格点称为一个元胞，通常用整数索引表示位置（如$i \in \mathbb{Z}$）。
+    \item \textbf{状态集合}：每个元胞的状态$s_i \in S$为有限离散值，最常见的是二进制状态$\{0,1\}$。
+    \item \textbf{邻居定义}：通常采用半径为$r$的对称邻居，例如$r=1$时，元胞$i$的邻居为$\{i-1, i, i+1\}$。
+\end{itemize}
+
+\subsection{演化规则}
+\begin{itemize}
+    \item \textbf{局部映射}：下一时刻的状态$s_i(t+1)$由当前时刻自身及邻居的状态共同决定：
+    $$
+    s_i(t+1) = f\big(s_{i-r}(t), \ldots, s_i(t), \ldots, s_{i+r}(t)\big)
+    $$
+    其中$f$为局部规则函数。
+    \item \textbf{同步更新}：所有元胞的状态同时更新，时间$t$为离散步长。
+\end{itemize}
+
+\subsection{典型示例}
+\begin{itemize}
+    \item \textbf{初等元胞自动机（ECA）}：状态数$k=2$、半径$r=1$的一维CA，共有$256$种可能的规则（Wolfram编号规则）。例如：
+    \begin{itemize}
+        \item \textbf{Rule 30}：产生混沌模式，用于伪随机数生成。
+        \item \textbf{Rule 110}：具有通用计算能力，可模拟图灵机。
+    \end{itemize}
+\end{itemize}
+
+\subsection{动力学行为分类（Wolfram分类）}
+\begin{enumerate}
+    \item \textbf{平稳型}：全0或全1。
+    \item \textbf{周期型}：如0101循环等。
+    \item \textbf{混沌型}：表现出无序、分形等不可预测行为。
+    \item \textbf{复杂型}：涌现局部有序与全局混沌的混合模式。
+\end{enumerate}
+
+\subsection{应用场景}
+\begin{itemize}
+    \item \textbf{物理模拟}：一维晶格中的粒子扩散、波动传播。
+    \item \textbf{密码学}：Rule 30用于生成加密序列。
+    \item \textbf{理论计算}：证明计算普适性（如Rule 110）。
+\end{itemize}
+
+
+
+\subsection{NaSch模型（Nagel-Schreckenberg模型）}
+NaSch模型是由德国学者Kai Nagel和Michael Schreckenberg于1992年提出的一维交通流元胞自动机模型，用于模拟车辆在单车道上的行驶行为。
+
+模型将道路离散化为等距元胞，每个元胞为空或容纳一辆车，车辆速度$v_n \in \{0,1,\ldots,v_{\max}\}$。每个时间步按以下四步并行更新：
+\begin{enumerate}
+    \item \textbf{加速:}$v_n \leftarrow \min(v_n + 1, v_{\max})$（司机倾向于加速至最大速度）
+    \item \textbf{减速:}$v_n \leftarrow \min(v_n, d_n)$（避免碰撞，$d_n$为与前车间距）
+    \item \textbf{随机慢化:}以概率$p$令$v_n \leftarrow \max(v_n - 1, 0)$（模拟驾驶员行为差异）
+    \item \textbf{位置更新:}$x_n \leftarrow x_n + v_n$（车辆按新速度移动）
+\end{enumerate}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\textwidth]{image.png}
+    \caption{NaSch模型下的仿真}
+    \label{fig:gui}
+\end{figure}
+
+\subsubsection{关键特性}
+\begin{itemize}
+    \item \textbf{自发拥堵}：随机慢化规则可引发交通波的传播，模拟真实拥堵现象.%\footnote{https://mp.weixin.qq.com/s?__biz=MzI0NDcxOTIwNA==&mid=2247483773&idx=1&sn=b28c18dfc749c42a7c86f7c920c9ff70&chksm=e84d912002b8bb7672f565ffcfdd64377bffa62a60d9ed62dd3254d19a8dc4550fef1557cc59#rd}。
+    \item \textbf{相变行为}：流量-密度曲线呈现自由流、拥堵相变，临界密度约为0.185\footnote{https://www.docin.com/p-2693167189.html}。
+    \item \textbf{周期性边界}：常用环形道路假设以简化模拟。
+\end{itemize}
+
+\subsubsection{应用与扩展}
+\begin{itemize}
+    \item \textbf{基础场景}：单车道交通流模拟，如高速公路。
+    \item \textbf{扩展模型}：STCA（双车道换道模型）、交叉口信号控制等。
+    \item \textbf{实际应用}：交通管理策略评估、拥堵机理分析。
+\end{itemize}
+一维元胞自动机虽结构简单，但通过局部规则的迭代能展现丰富的全局行为，是研究复杂系统自组织现象的基础模型。
+
+\section{二维元胞自动机}
+二维元胞自动机是一种在二维规则网格上运行的离散动力系统模型
+
+\subsection{基本结构}
+\begin{itemize}
+    \item \textbf{元胞空间}：由二维方形网格构成，每个网格点代表一个元胞，状态 $s_{i,j} \in S$（如$\{0,1\}$表示死亡/存活）。
+    \item \textbf{邻居定义}：
+    \begin{itemize}
+        \item \textbf{冯·诺依曼邻居}：上下左右4个正交相邻元胞
+        \item \textbf{摩尔邻居}：包含对角相邻的8个元胞（生命游戏采用此结构）
+    \end{itemize}
+\end{itemize}
+
+\subsection{演化规则}
+\begin{itemize}
+    \item 状态更新函数：
+    \[
+    s_{i,j}(t+1) = \delta\left(\{s_{k,l}(t)\mid (k,l)\in N_{i,j}\}\right)
+    \]
+    其中$N_{i,j}$表示(i,j)的邻居集合。
+    \item \textbf{同步更新}：所有元胞状态同时改变
+\end{itemize}
+
+\subsection{经典模型}
+\begin{itemize}
+    \item \textbf{生命游戏（Game of Life）}：
+    \begin{itemize}
+        \item 存活条件：2或3个存活邻居
+        \item 死亡条件：邻居数<2（孤独）或>3（拥挤）
+        \item 繁殖条件：死亡元胞有恰好3个存活邻居
+    \end{itemize}
+    \item \textbf{森林火灾模型}：模拟火势蔓延，状态包括「树木」「燃烧」「空地」
+\end{itemize}
+
+\subsection{行为分类（Wolfram分类）}
+\begin{enumerate}
+    \item 平稳型：演化至均匀状态（如全存活或全死亡）
+    \item 周期型：形成振荡结构（如生命游戏中的"滑翔机"）
+    \item 混沌型：产生无序分形模式
+    \item 复杂型：涌现稳定结构与混沌的混合
+\end{enumerate}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.6\textwidth]{image-1.png}
+    \caption{二维元胞自动机中的一类振荡器}
+    \label{fig:gui}
+\end{figure}
+
+\subsection{应用领域}
+\begin{itemize}
+    \item 物理模拟：流体动力学、晶体生长
+    \item 生物建模：细胞分化、流行病传播
+    \item 社会科学：交通流、城市规划
+    \item 图像处理：模式识别、纹理生成
+\end{itemize}
+
+二维元胞自动机通过局部规则驱动全局复杂行为，是研究涌现现象的重要工具。其MATLAB/Python实现通常涉及邻域卷积和状态矩阵迭代。
+
+
+
+%%%%============================================================================================================%%%
+
+\chapter{实验环境介绍}
+\section{主机环境}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\textwidth]{image-3.png}
+    \caption{实验环境}
+    \label{fig:gui}
+\end{figure}
+
+\section{软件环境:SDL库}
+SDL（Simple DirectMedia Layer）是一套开源的跨平台多媒体开发库，由Sam Lantinga于1998年开发，使用C语言编写。它主要用于游戏、模拟器和媒体播放器等多媒体应用的开发，支持Windows、Linux、Mac OS X等多种操作系统
+
+
+
+\chapter{设计与实现}
+
+\section{结构设计}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\textwidth]{image-4.png}
+    \caption{类的构造}
+    \label{fig:gui}
+\end{figure}
+\section{类的设计与实现}
+Cell类：
+
+封装细胞状态转换逻辑（规则1-4）
+
+使用双缓冲模式（current/nextState）避免迭代冲突
+
+坐标属性支持环形边界检测  
+
+LifeGrid类：
+
+使用STL vector实现动态二维网格
+
+countLiveNeighbors实现环形边界处理（模运算）
+
+分离状态计算(step)与数据获取(getCellState)  
+
+SDLRenderer类：
+
+封装SDL2初始化/销毁逻辑（RAII模式）
+
+事件处理与渲染解耦
+
+细胞渲染使用\texttt{SDL\_Rect} 填充优化性能
+
+
+设计模式应用
+
+观察者模式：SDLRenderer观察LifeGrid状态变化
+
+策略模式：细胞规则可通过继承Cell类扩展
+
+外观模式：SDLRenderer封装SDL2复杂API
+
+
+
+\section{实际界面}
+以下是部分代码运行过程中的实际演示
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\textwidth]{image-7.png}
+    \caption{box}
+    \label{fig:gui}
+\end{figure}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\textwidth]{image-8.png}
+    \caption{gameoflife}
+    \label{fig:gui}
+\end{figure}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\textwidth]{image-9.png}
+    \caption{gameoflifesdl2}
+    \label{fig:gui}
+\end{figure}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\textwidth]{image-11.png}
+    \caption{lifegame}
+    \label{fig:gui}
+\end{figure}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\textwidth]{image-13.png}
+    \caption{lifegame2}
+    \label{fig:gui}
+\end{figure}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\textwidth]{image-12.png}
+    \caption{模拟火烧}
+    \label{fig:gui}
+\end{figure}
+\chapter{总结与展望}
+此程序在类上和结构的实现思路并不复杂,,严格来讲只有三个类,可以认为只要花时间都可以轻松写出来,在此程序的实践过程中,主要的困难在于mac系统上导入SDL库的极度困难性,因此我在实现的过程中特意写出每一个实现方法的编译代码 or makefile文件,期望以此实现泛用性,不过不得不提,mac上cpp的图形界面库软件实在太少(?说的可能不太严谨)了,这一点远远不及windows上的方便性.
+
+特别的,mac上cpp编译带库非常困难,特别是使用homebrew安装的sdl库,在位置不明晰的确定下,编译时往往会出现找不到\#include <SDL2/SDL.h>的情况,非常的痛苦
+%所以我的代码中包含了一个the_way_to_use_sdl_undermac,以提供一个在mac上使用sdl库的成功案例作为参考程序,也是编写makefile的重要参考.
+所以我的代码中包含了一个\texttt{the\_way\_to\_use\_sdl\_undermac}，以提供一个在mac上使用SDL库的成功案例作为参考程序，也是编写Makefile的重要参考。
+
+本程序的主要作用在于实现个人严格控制下的元胞自动机的初步仿真和初步界面的实现,预计在后面需要进一步完善,主要目标有添加键盘控制功能,考虑添加机器学习要素研究其规律的想法,不过感觉这要用python方便多了(各方面ww)
+%此处结束正文-------------------------------------------------------------------------------------------------
+
+
+\include{includefile/backmatter} %%%结论
+
+%%%============================================================================================================%%%
+
+%%%=== 参考文献 ========%%%
+\cleardoublepage\phantomsection
+\addcontentsline{toc}{chapter}{参考文献}
+\renewcommand{\baselinestretch}{1.6}
+\begin{thebibliography}{00}
+  
+  \bibitem{mapreduce} 知乎文章. \url{https://zhuanlan.zhihu.com/p/113204715}.
+  \bibitem{mapreduce} 相关介绍 \url{https://xinshoujiajia.github.io/chANKOS/chp5/content2.html}.
+  \bibitem{mapreduce} GitHub项目. \url{https://github.com/Windxy/CA_SEIR}.
+  \bibitem{mapreduce} GitHub项目. \url{https://github.com/DevilHamster/Cellular-Automata?tab=readme-ov-file}.
+  \bibitem{mapreduce} GitHub项目. \url{https://github.com/zhangerfa/Trands_cellular_automata}.
+  \bibitem{mapreduce} GitHub项目. \url{https://github.com/zhan3333/python-Cellular-automata/blob/master/cellular_automata.py}.
+  \bibitem{mapreduce} GitHub项目. \url{https://github.com/amao-9/celluar_aotumation/blob/main/box.py}.
+  \bibitem{mapreduce} 知乎问答. \url{https://www.zhihu.com/question/20711603}.
+  \bibitem{mapreduce} 知乎文章. \url{https://zhuanlan.zhihu.com/p/93738666}.
+  \bibitem{mapreduce} 知乎文章. \url{https://zhuanlan.zhihu.com/p/621070746}.
+  \bibitem{mapreduce} 知乎文章. \url{https://zhuanlan.zhihu.com/p/45026142}.
+  %\bibitem{mapreduce} Dean J, Ghemawat S. MapReduce: Simplified Data Processing on Large Clusters[A].Eric A. Brewer, Peter Chen.6th Symposium on Operating Systems Design and Implementation(OSDI 2004)[C], San Francisco, California, USA: {USENIX} Association, 2004:137--150.
+
+  %\bibitem{r1} 作者. 文章题目 [J].  期刊名, 出版年份，卷号(期数): 起止页码.
+
+  %\bibitem{r2} 作者. 书名 [M]. 版次. 出版地：出版单位，出版年份：起止页码.
+
+  % \bibitem{r3} 邓建松等, 《\LaTeXe~科技排版指南》, 科学出版社.
+
+  % \bibitem{r4} 吴凌云, 《CTeX~FAQ (常见问题集)》, \textit{Version~0.4}, June 21, 2004.
+
+  % \bibitem{r5} Herbert Vo\ss, Mathmode, \url{http://www.tex.ac.uk/ctan/info/math/voss/mathmode/Mathmode.pdf}.
+
+
+\end{thebibliography}
+
+
+
+%%%-------------- 附录. 不需要可以删除.-----------
+
+
+\appendix
+
+
+
+%%%-------------- 教师评语评分 ------------------
+\begin{teacher}
+\thispagestyle{empty}
+评语: 
+\par
+\vspace*{12.5cm}
+\hspace*{7.5cm}评分: 
+\vspace*{1cm}
+
+\hspace*{7.3cm}评阅人:
+
+\vspace*{0.5cm}
+
+\hspace*{10.1cm}年\hspace*{1cm}月\hspace*{1cm}日
+
+\vspace*{0.5cm}
+
+{\songti \zihao{4} \makebox[1cm][s]{（备注：对该实验报告给予优点和不足的评价，并给出百分制评分。）}}
+
+\end{teacher}
+
+
+\cleardoublepage
+\end{document}
+
+
+
+
+
